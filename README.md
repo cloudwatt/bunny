@@ -27,13 +27,13 @@ The configuration file is using JSON format. Here are the supported settings and
 
 * `"broker": "amqp://guest:guest@localhost:5672/"` Broker URL (URL syntax: amqp://username:password@host:port/)
 * `"consumer_id": "bunny-worker"` AMQP consumer identifier
-* `"consumer_exchange": "nagios_checks"` Broker exchange to connect to for consuming checks messages
+* `"consumer_exchange": "nagios"` Broker exchange to connect to for consuming checks messages
 * `"consumer_exchange_type": "direct"` Broker consumer exchange type*
 * `"consumer_queue": "nagios_checks"` Queue to bind to for consuming check messages
-* `"consumer_binding_key": ""` Binding key to use to consume check messages
-* `"publisher_exchange": "nagios_results"` Broker exchange to connect to for publishing checks result messages
+* `"consumer_binding_key": "nagios_checks"` Binding key to use to consume check messages
+* `"publisher_exchange": "nagios"` Broker exchange to connect to for publishing checks result messages
 * `"publisher_exchange_type": "direct"` Broker publisher exchange type
-* `"publisher_routing_key": ""` Routing key to apply when publishing check result messages
+* `"publisher_routing_key": "nagios_results"` Routing key to apply when publishing check result messages
 * `"max_exec_timeout": 30` Maximum check command execution time (in seconds)
 * `"retry_wait_time": 3` Time to wait (in seconds) before trying to reconnect to the broker
 * `"report_stderr": false` Report check command output on `stderr` in addition to `stdout`
