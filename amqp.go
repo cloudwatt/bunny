@@ -99,10 +99,6 @@ func initAMQPConsumer() error {
 		return fmt.Errorf("consumer: error: unable to declare queue \"%s\": %s", config.ConsumerQueue, err)
 	}
 
-	if config.Debug {
-		logger.Printf("consumer: bound queue %s to exchange %s", amqpConsumer.queue.Name, config.ConsumerExchange)
-	}
-
 	if err = amqpConsumer.channel.QueueBind(
 		config.ConsumerQueue,      // queue name
 		config.ConsumerBindingKey, // binding (routing) key
@@ -114,6 +110,13 @@ func initAMQPConsumer() error {
 			config.ConsumerQueue,
 			config.ConsumerExchange,
 			err)
+	}
+
+	if config.Debug {
+		logger.Printf("consumer: bound queue %q matching key %q to exchange %q",
+			amqpConsumer.queue.Name,
+			config.ConsumerBindingKey,
+			config.ConsumerExchange)
 	}
 
 	if amqpConsumer.messages, err = amqpConsumer.channel.Consume(
