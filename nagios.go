@@ -101,7 +101,9 @@ func (nc *nagiosCheck) execute() {
 	cmd.Stdout = &cmdStdout
 	cmd.Stderr = &cmdStderr
 
-	cmd.Start()
+	if err := cmd.Start(); err != nil {
+		logger.Fatalf("worker: error: unable to execute command line \"%s\": %s", nc.CommandLine, err)
+	}
 
 	doneExec := make(chan error, 1)
 	go func() {
