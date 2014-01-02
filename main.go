@@ -23,10 +23,12 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 )
@@ -55,16 +57,21 @@ type bunnyConfig struct {
 	Debug                       bool   `json:"debug"`
 }
 
+const (
+	bunnyVersion = "0.1.1"
+)
+
 var (
-	config     bunnyConfig
-	configFile *string
-	run        bool
-	wg         sync.WaitGroup
-	err        error
-	hostname   string
-	logger     *log.Logger
-	chkChan    chan *nagiosCheck
-	chkResChan chan *nagiosCheckResult
+	config      bunnyConfig
+	configFile  *string
+	showVersion *bool
+	run         bool
+	wg          sync.WaitGroup
+	err         error
+	hostname    string
+	logger      *log.Logger
+	chkChan     chan *nagiosCheck
+	chkResChan  chan *nagiosCheckResult
 )
 
 func init() {
@@ -100,12 +107,22 @@ func init() {
 	}
 
 	configFile = flag.String("c", "/etc/bunny.conf", "Configuration file path")
+	showVersion = flag.Bool("v", false, "Show software version")
+
 	flag.Parse()
 
 	run = true
 }
 
 func main() {
+	if *showVersion {
+		fmt.Printf("bunny version %s\nGo compiler: %s (%s)\n",
+			bunnyVersion,
+			runtime.Version(),
+			runtime.Compiler)
+		return
+	}
+
 	// Handle termination signals for clean exit
 	sig := make(chan os.Signal, 1)
 	exit := make(chan bool, 1)
