@@ -23,6 +23,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/streadway/amqp"
 	"os/exec"
 	"syscall"
 	"time"
@@ -51,6 +52,7 @@ type nagiosCheck struct {
 	ServiceDescription string  `json:"service_description"`
 	StartTime          float64 `json:"start_time"`
 	Timeout            int     `json:"timeout"`
+	Message            amqp.Delivery
 }
 
 type nagiosCheckResult struct {
@@ -155,6 +157,9 @@ func (nc *nagiosCheck) execute() {
 	}
 
 	chkResChan <- cr
+
+	// Acknowledge AMQP check request message
+	nc.Message.Ack(false)
 
 	// Decrement running worker goroutines counter
 	wg.Done()

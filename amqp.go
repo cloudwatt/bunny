@@ -122,7 +122,7 @@ func initAMQPConsumer() error {
 	if amqpConsumer.messages, err = amqpConsumer.channel.Consume(
 		config.ConsumerQueue, // queue name
 		config.ConsumerID,    // consumer identifier
-		true,                 // `noack` flag
+		false,                // `noack` flag
 		config.ConsumerQueueExclusive, // `exclusive` flag
 		false, // `nolocal` flag
 		false, // `nowait` flag
@@ -234,11 +234,6 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 		}
 
 		for message := range amqpConsumer.messages {
-			// logger.Printf("received message from exchange %s with routing key %s: %s",
-			// 	message.Exchange,
-			// 	message.RoutingKey,
-			// 	message.Body)
-
 			// Discard non JSON-formatted messages
 			if message.ContentType != "application/json" {
 				if message.ContentType == "" {
@@ -246,6 +241,8 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 				} else {
 					logger.Printf("consumer: error: unsupported message content type \"%s\"", message.ContentType)
 				}
+
+				message.Ack(true)
 
 				continue
 			}
@@ -255,6 +252,8 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 				logger.Printf("consumer: error: unable to unmarshal check: %s", err)
 				continue
 			}
+
+			nc.Message = message
 
 			c <- nc
 		}
