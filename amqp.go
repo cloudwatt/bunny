@@ -72,6 +72,11 @@ func initAMQPConsumer() error {
 		logger.Printf("consumer: connected to broker")
 	}
 
+	// Only receive <config.MaxConcurrency> messages per channel until ack'd
+	if err = amqpConsumer.channel.Qos(config.MaxConcurrency, 0, false); err != nil {
+		return fmt.Errorf("consumer: error: unable to set QoS on channel: %s", err)
+	}
+
 	if err = amqpConsumer.channel.ExchangeDeclare(
 		config.ConsumerExchange,           // exchange name
 		config.ConsumerExchangeType,       // exchange type
