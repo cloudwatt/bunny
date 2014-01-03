@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/streadway/amqp"
 	"os/exec"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -73,8 +74,8 @@ type nagiosCheckResult struct {
 func (nc *nagiosCheck) execute() {
 	var cmdStdout, cmdStderr bytes.Buffer
 
-	if config.Debug {
-		logger.Printf("worker: executing command line %s", nc.CommandLine)
+	if config.DebugLevel > 0 {
+		logger.Printf("worker: executing command \"%s\"", nc.CommandLine)
 	}
 
 	cr := &nagiosCheckResult{
@@ -114,7 +115,7 @@ func (nc *nagiosCheck) execute() {
 
 	select {
 	case <-time.After(time.Duration(nc.Timeout) * time.Second):
-		// Check execution time reached timeout, kill it
+		// Check execution time reached timeout, kill it with fire!
 		cmd.Process.Kill()
 
 		cr.EarlyTimeout = nagiosTrue
@@ -125,6 +126,10 @@ func (nc *nagiosCheck) execute() {
 		} else {
 			cr.Output = "(service check timed out)"
 			cr.ReturnCode = nagiosServiceStatusUnknown
+		}
+
+		if config.DebugLevel > 1 {
+			logger.Printf("worker: command \"%s\" execution timed out", nc.CommandLine)
 		}
 
 	case <-doneExec:
@@ -146,6 +151,14 @@ func (nc *nagiosCheck) execute() {
 		}
 
 		cr.ReturnCode = cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+
+		if config.DebugLevel > 1 {
+			logger.Printf("worker: executed command \"%s\": [ReturnCode=%d stdOut=\"%s\" stdErr=\"%s\"]",
+				nc.CommandLine,
+				cr.ReturnCode,
+				strings.TrimSuffix(cmdStdout.String(), "\n"),
+				strings.TrimSuffix(cmdStderr.String(), "\n"))
+		}
 	}
 
 	timeEnd := time.Now()

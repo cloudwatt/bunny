@@ -55,7 +55,7 @@ type bunnyConfig struct {
 	MaxConcurrency              int    `json:"max_concurrency"`
 	ReportStderr                bool   `json:"report_stderr"`
 	AppendWorkerHostname        bool   `json:"append_worker_hostname"`
-	Debug                       bool   `json:"debug"`
+	DebugLevel                  int    `json:"debug_level"`
 }
 
 const (
@@ -105,7 +105,7 @@ func init() {
 		RetryWaitTime:               3,
 		ReportStderr:                false,
 		AppendWorkerHostname:        true,
-		Debug:                       false,
+		DebugLevel:                  0,
 	}
 
 	configFile = flag.String("c", "/etc/bunny.conf", "Configuration file path")
@@ -133,7 +133,7 @@ func main() {
 	go func() {
 		<-sig // Block until we receive a notification on the chan from signal handler
 
-		if config.Debug {
+		if config.DebugLevel > 0 {
 			logger.Println("received termination signal")
 		}
 
