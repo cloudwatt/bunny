@@ -38,7 +38,7 @@ The configuration file is using JSON format. Here are the supported settings and
 * `"retry_wait_time": 3` Time to wait (in seconds) before trying to reconnect to the broker
 * `"report_stderr": false` Report check command output on `stderr` in addition to `stdout`
 * `"append_worker_hostname": true` Append worker host name to Nagios check results
-* `"debug": false` Debugging flag (useful for troubleshooting errors)
+* `"debug_level": 0` Debugging output verbosity (0 = none, 1 = show AMQP events and worker activity, 2 = same as 1 + dump received/sent AMQP messages and executed commands execution details)
 
 \* : To benefit from the _round-robin_ load-balancing RabbitMQ feature, the consumer exchange **MUST** be of type _direct_. Read [this](http://www.rabbitmq.com/tutorials/amqp-concepts.html#exchange-direct) to understand why.
 

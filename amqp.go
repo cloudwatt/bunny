@@ -68,7 +68,7 @@ func initAMQPConsumer() error {
 		return fmt.Errorf("consumer: error: unable to open channel on broker: %s", err)
 	}
 
-	if config.Debug {
+	if config.DebugLevel > 0 {
 		logger.Printf("consumer: connected to broker")
 	}
 
@@ -84,7 +84,7 @@ func initAMQPConsumer() error {
 		return fmt.Errorf("consumer: error: unable to declare exchange \"%s\": %s", config.ConsumerExchange, err)
 	}
 
-	if config.Debug {
+	if config.DebugLevel > 0 {
 		logger.Printf("consumer: declared exchange %s (%s)", config.ConsumerExchange, config.ConsumerExchangeType)
 	}
 
@@ -112,7 +112,7 @@ func initAMQPConsumer() error {
 			err)
 	}
 
-	if config.Debug {
+	if config.DebugLevel > 0 {
 		logger.Printf("consumer: bound queue %q matching key %q to exchange %q",
 			amqpConsumer.queue.Name,
 			config.ConsumerBindingKey,
@@ -132,7 +132,7 @@ func initAMQPConsumer() error {
 			config.ConsumerQueue, err)
 	}
 
-	if config.Debug {
+	if config.DebugLevel > 0 {
 		logger.Printf("consumer: ready to consume from queue %s", config.ConsumerQueue)
 	}
 
@@ -166,7 +166,7 @@ func initAMQPPublisher() error {
 		return fmt.Errorf("publisher: error: unable to open channel on broker: %s", err)
 	}
 
-	if config.Debug {
+	if config.DebugLevel > 0 {
 		logger.Printf("publisher: connected to broker")
 	}
 
@@ -182,7 +182,7 @@ func initAMQPPublisher() error {
 		return fmt.Errorf("publisher: error: unable to declare exchange \"%s\": %s", config.PublisherExchange, err)
 	}
 
-	if config.Debug {
+	if config.DebugLevel > 0 {
 		logger.Printf("publisher: declared exchange %s (%s)", config.PublisherExchange, config.PublisherExchangeType)
 	}
 
@@ -195,7 +195,7 @@ func stopAMQPConsumer() {
 	if amqpConsumer.connected {
 		amqpConsumer.connected = false
 
-		if config.Debug {
+		if config.DebugLevel > 0 {
 			logger.Printf("consumer: disconnecting from broker")
 		}
 
@@ -209,7 +209,7 @@ func stopAMQPPublisher() {
 	if amqpPublisher.connected {
 		amqpPublisher.connected = false
 
-		if config.Debug {
+		if config.DebugLevel > 0 {
 			logger.Printf("publisher: disconnecting from broker")
 		}
 
@@ -229,15 +229,18 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 			}
 		}
 
-		if config.Debug {
+		if config.DebugLevel > 0 {
 			logger.Printf("consumer: entering loop")
 		}
 
 		for message := range amqpConsumer.messages {
-			// logger.Printf("received message from exchange %s with routing key %s: %s",
-			// 	message.Exchange,
-			// 	message.RoutingKey,
-			// 	message.Body)
+			if config.DebugLevel > 1 {
+				logger.Printf("consumer: received message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
+					message.ContentType,
+					message.Exchange,
+					message.RoutingKey,
+					message.Body)
+			}
 
 			// Discard non JSON-formatted messages
 			if message.ContentType != "application/json" {
@@ -259,7 +262,7 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 			c <- nc
 		}
 
-		if config.Debug {
+		if config.DebugLevel > 0 {
 			logger.Printf("consumer: loop stopped, disconnecting from broker")
 		}
 
@@ -268,9 +271,11 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 }
 
 func runAMQPPublisher(c <-chan *nagiosCheckResult) {
-	var cr *nagiosCheckResult
-	var crJSON []byte
-	var msg amqp.Publishing
+	var (
+		cr      *nagiosCheckResult
+		crJSON  []byte
+		message amqp.Publishing
+	)
 
 	for cr = range c {
 		// Check that we are connected to the broker before going forward
@@ -287,7 +292,7 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 			continue
 		}
 
-		msg = amqp.Publishing{
+		message = amqp.Publishing{
 			DeliveryMode: amqp.Transient,
 			Timestamp:    time.Now(),
 			ContentType:  "application/json",
@@ -299,13 +304,21 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 			config.PublisherRoutingKey, // routing key
 			false, // `mandatory` flag
 			false, // `immediate` flag
-			msg); err != nil {
+			message); err != nil {
 			logger.Printf("publisher: error: unable to publish message: %s", err)
 			stopAMQPPublisher()
 		}
+
+		if config.DebugLevel > 1 {
+			logger.Printf("publisher: sent message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
+				message.ContentType,
+				config.PublisherExchange,
+				config.PublisherRoutingKey,
+				message.Body)
+		}
 	}
 
-	if config.Debug {
+	if config.DebugLevel > 0 {
 		logger.Printf("publisher: loop stopped")
 	}
 }
