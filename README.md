@@ -35,6 +35,7 @@ The configuration file is using JSON format. Here are the supported settings and
 * `"publisher_exchange_type": "direct"` Broker publisher exchange type
 * `"publisher_routing_key": "nagios_results"` Routing key to apply when publishing check result messages
 * `"max_exec_timeout": 30` Maximum check command execution time (in seconds)
+* `"max_concurrency": <N CPU * 10>` Maximum check commands allowed to run concurrently
 * `"retry_wait_time": 3` Time to wait (in seconds) before trying to reconnect to the broker
 * `"report_stderr": false` Report check command output on `stderr` in addition to `stdout`
 * `"append_worker_hostname": true` Append worker host name to Nagios check results

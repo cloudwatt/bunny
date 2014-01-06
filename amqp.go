@@ -72,6 +72,11 @@ func initAMQPConsumer() error {
 		logger.Printf("consumer: connected to broker")
 	}
 
+	// Only receive <config.MaxConcurrency> messages per channel until ack'd
+	if err = amqpConsumer.channel.Qos(config.MaxConcurrency, 0, false); err != nil {
+		return fmt.Errorf("consumer: error: unable to set QoS on channel: %s", err)
+	}
+
 	if err = amqpConsumer.channel.ExchangeDeclare(
 		config.ConsumerExchange,           // exchange name
 		config.ConsumerExchangeType,       // exchange type
@@ -122,7 +127,7 @@ func initAMQPConsumer() error {
 	if amqpConsumer.messages, err = amqpConsumer.channel.Consume(
 		config.ConsumerQueue, // queue name
 		config.ConsumerID,    // consumer identifier
-		true,                 // `noack` flag
+		false,                // `noack` flag
 		config.ConsumerQueueExclusive, // `exclusive` flag
 		false, // `nolocal` flag
 		false, // `nowait` flag
@@ -250,6 +255,8 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 					logger.Printf("consumer: error: unsupported message content type \"%s\"", message.ContentType)
 				}
 
+				message.Ack(true)
+
 				continue
 			}
 
@@ -258,6 +265,8 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 				logger.Printf("consumer: error: unable to unmarshal check: %s", err)
 				continue
 			}
+
+			nc.Message = message
 
 			c <- nc
 		}

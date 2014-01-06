@@ -52,6 +52,7 @@ type bunnyConfig struct {
 	PublisherRoutingKey         string `json:"publisher_routing_key"`
 	RetryWaitTime               int    `json:"retry_wait_time"`
 	MaxExecTimeout              int    `json:"max_exec_timeout"`
+	MaxConcurrency              int    `json:"max_concurrency"`
 	ReportStderr                bool   `json:"report_stderr"`
 	AppendWorkerHostname        bool   `json:"append_worker_hostname"`
 	DebugLevel                  int    `json:"debug_level"`
@@ -100,6 +101,7 @@ func init() {
 		PublisherExchangeAutodelete: false,
 		PublisherRoutingKey:         "nagios_results",
 		MaxExecTimeout:              30,
+		MaxConcurrency:              runtime.NumCPU() * 10,
 		RetryWaitTime:               3,
 		ReportStderr:                false,
 		AppendWorkerHostname:        true,
