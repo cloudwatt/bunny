@@ -229,7 +229,11 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 		for !amqpConsumer.connected {
 			if err := initAMQPConsumer(); err != nil {
 				logger.Printf("%s", err)
-				logger.Printf("consumer: waiting for %ds before retry connecting", config.RetryWaitTime)
+
+				if config.DebugLevel > 0 {
+					logger.Printf("consumer: waiting for %ds before retry connecting", config.RetryWaitTime)
+				}
+
 				time.Sleep(time.Second * time.Duration(config.RetryWaitTime))
 			}
 		}
@@ -240,7 +244,8 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 
 		for message := range amqpConsumer.messages {
 			if config.DebugLevel > 1 {
-				logger.Printf("consumer: received message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
+				logger.Printf(
+					"consumer: received message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
 					message.ContentType,
 					message.Exchange,
 					message.RoutingKey,
@@ -291,7 +296,11 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 		for !amqpPublisher.connected {
 			if err := initAMQPPublisher(); err != nil {
 				logger.Printf("%s", err)
-				logger.Printf("publisher: waiting for %ds before retry connecting", config.RetryWaitTime)
+
+				if config.DebugLevel > 0 {
+					logger.Printf("publisher: waiting for %ds before retry connecting", config.RetryWaitTime)
+				}
+
 				time.Sleep(time.Second * time.Duration(config.RetryWaitTime))
 			}
 		}
@@ -319,7 +328,8 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 		}
 
 		if config.DebugLevel > 1 {
-			logger.Printf("publisher: sent message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
+			logger.Printf(
+				"publisher: sent message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
 				message.ContentType,
 				config.PublisherExchange,
 				config.PublisherRoutingKey,
