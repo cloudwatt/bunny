@@ -105,7 +105,7 @@ func init() {
 		RetryWaitTime:               3,
 		ReportStderr:                false,
 		AppendWorkerHostname:        true,
-		DebugLevel:                  0,
+		DebugLevel:                  1,
 	}
 
 	configFile = flag.String("c", "/etc/bunny.conf", "Configuration file path")
@@ -141,11 +141,13 @@ func main() {
 		exit <- true
 	}()
 
-	logger.Println("starting")
-
 	// Parse configuration file
 	if err := parseConfig(configFile); err != nil {
 		logger.Fatalf("cannot parse configuration file: %s", err)
+	}
+
+	if config.DebugLevel > 0 {
+		logger.Println("starting")
 	}
 
 	chkChan = make(chan *nagiosCheck)
@@ -183,7 +185,9 @@ func main() {
 
 	stopAMQPPublisher()
 
-	logger.Println("terminating")
+	if config.DebugLevel > 0 {
+		logger.Println("terminating")
+	}
 }
 
 func parseConfig(file *string) error {

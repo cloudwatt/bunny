@@ -89,7 +89,7 @@ func initAMQPConsumer() error {
 		return fmt.Errorf("consumer: error: unable to declare exchange \"%s\": %s", config.ConsumerExchange, err)
 	}
 
-	if config.DebugLevel > 0 {
+	if config.DebugLevel > 1 {
 		logger.Printf("consumer: declared exchange %s (%s)", config.ConsumerExchange, config.ConsumerExchangeType)
 	}
 
@@ -117,7 +117,7 @@ func initAMQPConsumer() error {
 			err)
 	}
 
-	if config.DebugLevel > 0 {
+	if config.DebugLevel > 1 {
 		logger.Printf("consumer: bound queue %q matching key %q to exchange %q",
 			amqpConsumer.queue.Name,
 			config.ConsumerBindingKey,
@@ -137,7 +137,7 @@ func initAMQPConsumer() error {
 			config.ConsumerQueue, err)
 	}
 
-	if config.DebugLevel > 0 {
+	if config.DebugLevel > 1 {
 		logger.Printf("consumer: ready to consume from queue %s", config.ConsumerQueue)
 	}
 
@@ -187,7 +187,7 @@ func initAMQPPublisher() error {
 		return fmt.Errorf("publisher: error: unable to declare exchange \"%s\": %s", config.PublisherExchange, err)
 	}
 
-	if config.DebugLevel > 0 {
+	if config.DebugLevel > 1 {
 		logger.Printf("publisher: declared exchange %s (%s)", config.PublisherExchange, config.PublisherExchangeType)
 	}
 
@@ -243,7 +243,7 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 		}
 
 		for message := range amqpConsumer.messages {
-			if config.DebugLevel > 1 {
+			if config.DebugLevel > 2 {
 				logger.Printf(
 					"consumer: received message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
 					message.ContentType,
@@ -327,7 +327,7 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 			stopAMQPPublisher()
 		}
 
-		if config.DebugLevel > 1 {
+		if config.DebugLevel > 2 {
 			logger.Printf(
 				"publisher: sent message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
 				message.ContentType,
