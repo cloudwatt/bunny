@@ -74,7 +74,7 @@ type nagiosCheckResult struct {
 func (nc *nagiosCheck) execute() {
 	var cmdStdout, cmdStderr bytes.Buffer
 
-	if config.DebugLevel > 1 {
+	if config.LogLevel > 1 {
 		logger.Printf("worker: executing command \"%s\"", nc.CommandLine)
 	}
 
@@ -128,7 +128,7 @@ func (nc *nagiosCheck) execute() {
 			cr.ReturnCode = nagiosServiceStatusUnknown
 		}
 
-		if config.DebugLevel > 2 {
+		if config.LogLevel > 2 {
 			logger.Printf("worker: command \"%s\" execution timed out", nc.CommandLine)
 		}
 
@@ -152,7 +152,7 @@ func (nc *nagiosCheck) execute() {
 
 		cr.ReturnCode = cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
-		if config.DebugLevel > 2 {
+		if config.LogLevel > 2 {
 			logger.Printf("worker: executed command \"%s\": [ReturnCode=%d stdOut=\"%s\" stdErr=\"%s\"]",
 				nc.CommandLine,
 				cr.ReturnCode,

@@ -68,7 +68,7 @@ func initAMQPConsumer() error {
 		return fmt.Errorf("consumer: error: unable to open channel on broker: %s", err)
 	}
 
-	if config.DebugLevel > 0 {
+	if config.LogLevel > 0 {
 		logger.Printf("consumer: connected to broker")
 	}
 
@@ -89,7 +89,7 @@ func initAMQPConsumer() error {
 		return fmt.Errorf("consumer: error: unable to declare exchange \"%s\": %s", config.ConsumerExchange, err)
 	}
 
-	if config.DebugLevel > 1 {
+	if config.LogLevel > 1 {
 		logger.Printf("consumer: declared exchange %s (%s)", config.ConsumerExchange, config.ConsumerExchangeType)
 	}
 
@@ -117,7 +117,7 @@ func initAMQPConsumer() error {
 			err)
 	}
 
-	if config.DebugLevel > 1 {
+	if config.LogLevel > 1 {
 		logger.Printf("consumer: bound queue %q matching key %q to exchange %q",
 			amqpConsumer.queue.Name,
 			config.ConsumerBindingKey,
@@ -137,7 +137,7 @@ func initAMQPConsumer() error {
 			config.ConsumerQueue, err)
 	}
 
-	if config.DebugLevel > 1 {
+	if config.LogLevel > 1 {
 		logger.Printf("consumer: ready to consume from queue %s", config.ConsumerQueue)
 	}
 
@@ -171,7 +171,7 @@ func initAMQPPublisher() error {
 		return fmt.Errorf("publisher: error: unable to open channel on broker: %s", err)
 	}
 
-	if config.DebugLevel > 0 {
+	if config.LogLevel > 0 {
 		logger.Printf("publisher: connected to broker")
 	}
 
@@ -187,7 +187,7 @@ func initAMQPPublisher() error {
 		return fmt.Errorf("publisher: error: unable to declare exchange \"%s\": %s", config.PublisherExchange, err)
 	}
 
-	if config.DebugLevel > 1 {
+	if config.LogLevel > 1 {
 		logger.Printf("publisher: declared exchange %s (%s)", config.PublisherExchange, config.PublisherExchangeType)
 	}
 
@@ -200,7 +200,7 @@ func stopAMQPConsumer() {
 	if amqpConsumer.connected {
 		amqpConsumer.connected = false
 
-		if config.DebugLevel > 0 {
+		if config.LogLevel > 0 {
 			logger.Printf("consumer: disconnecting from broker")
 		}
 
@@ -214,7 +214,7 @@ func stopAMQPPublisher() {
 	if amqpPublisher.connected {
 		amqpPublisher.connected = false
 
-		if config.DebugLevel > 0 {
+		if config.LogLevel > 0 {
 			logger.Printf("publisher: disconnecting from broker")
 		}
 
@@ -230,7 +230,7 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 			if err := initAMQPConsumer(); err != nil {
 				logger.Printf("%s", err)
 
-				if config.DebugLevel > 0 {
+				if config.LogLevel > 0 {
 					logger.Printf("consumer: waiting for %ds before retry connecting", config.RetryWaitTime)
 				}
 
@@ -238,12 +238,12 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 			}
 		}
 
-		if config.DebugLevel > 0 {
+		if config.LogLevel > 0 {
 			logger.Printf("consumer: entering loop")
 		}
 
 		for message := range amqpConsumer.messages {
-			if config.DebugLevel > 2 {
+			if config.LogLevel > 2 {
 				logger.Printf(
 					"consumer: received message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
 					message.ContentType,
@@ -276,7 +276,7 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 			c <- nc
 		}
 
-		if config.DebugLevel > 0 {
+		if config.LogLevel > 0 {
 			logger.Printf("consumer: loop stopped, disconnecting from broker")
 		}
 
@@ -297,7 +297,7 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 			if err := initAMQPPublisher(); err != nil {
 				logger.Printf("%s", err)
 
-				if config.DebugLevel > 0 {
+				if config.LogLevel > 0 {
 					logger.Printf("publisher: waiting for %ds before retry connecting", config.RetryWaitTime)
 				}
 
@@ -327,7 +327,7 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 			stopAMQPPublisher()
 		}
 
-		if config.DebugLevel > 2 {
+		if config.LogLevel > 2 {
 			logger.Printf(
 				"publisher: sent message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
 				message.ContentType,
@@ -337,7 +337,7 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 		}
 	}
 
-	if config.DebugLevel > 0 {
+	if config.LogLevel > 0 {
 		logger.Printf("publisher: loop stopped")
 	}
 }

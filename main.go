@@ -55,7 +55,7 @@ type bunnyConfig struct {
 	MaxConcurrency              int    `json:"max_concurrency"`
 	ReportStderr                bool   `json:"report_stderr"`
 	AppendWorkerHostname        bool   `json:"append_worker_hostname"`
-	DebugLevel                  int    `json:"debug_level"`
+	LogLevel                    int    `json:"log_level"`
 }
 
 const (
@@ -105,7 +105,7 @@ func init() {
 		RetryWaitTime:               3,
 		ReportStderr:                false,
 		AppendWorkerHostname:        true,
-		DebugLevel:                  1,
+		LogLevel:                    1,
 	}
 
 	configFile = flag.String("c", "/etc/bunny.conf", "Configuration file path")
@@ -133,7 +133,7 @@ func main() {
 	go func() {
 		<-sig // Block until we receive a notification on the chan from signal handler
 
-		if config.DebugLevel > 0 {
+		if config.LogLevel > 0 {
 			logger.Println("received termination signal")
 		}
 
@@ -146,7 +146,7 @@ func main() {
 		logger.Fatalf("cannot parse configuration file: %s", err)
 	}
 
-	if config.DebugLevel > 0 {
+	if config.LogLevel > 0 {
 		logger.Println("starting")
 	}
 
@@ -185,7 +185,7 @@ func main() {
 
 	stopAMQPPublisher()
 
-	if config.DebugLevel > 0 {
+	if config.LogLevel > 0 {
 		logger.Println("terminating")
 	}
 }
