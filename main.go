@@ -59,7 +59,7 @@ type bunnyConfig struct {
 }
 
 const (
-	bunnyVersion = "0.2.0"
+	bunnyVersion = "0.3.0"
 )
 
 var (
