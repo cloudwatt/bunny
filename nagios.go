@@ -152,6 +152,17 @@ func (nc *nagiosCheck) execute() {
 
 		cr.ReturnCode = cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
+		// Check if return code is within acceptable bounds
+		if nc.Type == "host" {
+			if cr.ReturnCode < 0 || cr.ReturnCode > nagiosHostStatusUnreachable {
+				cr.ReturnCode = nagiosHostStatusUnreachable
+			}
+		} else {
+			if cr.ReturnCode < 0 || cr.ReturnCode > nagiosServiceStatusUnknown {
+				cr.ReturnCode = nagiosServiceStatusUnknown
+			}
+		}
+
 		if config.LogLevel > 2 {
 			logger.Printf("worker: executed command \"%s\": [ReturnCode=%d stdOut=\"%s\" stdErr=\"%s\"]",
 				nc.CommandLine,
