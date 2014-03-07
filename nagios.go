@@ -121,10 +121,10 @@ func (nc *nagiosCheck) execute() {
 		cr.EarlyTimeout = nagiosTrue
 
 		if nc.Type == "host" {
-			cr.Output = "(host check timed out)"
+			cr.Output = "(bunny: host check timed out)"
 			cr.ReturnCode = nagiosHostStatusUnreachable
 		} else {
-			cr.Output = "(service check timed out)"
+			cr.Output = "(bunny: service check timed out)"
 			cr.ReturnCode = nagiosServiceStatusUnknown
 		}
 
@@ -139,7 +139,7 @@ func (nc *nagiosCheck) execute() {
 				cr.Output = cmdStderr.String()[0 : cmdStderr.Len()-1]
 			} else {
 				// If there's nothing on stderr either
-				cr.Output = "(no check output)"
+				cr.Output = "(bunny: no check output)"
 			}
 		} else {
 			cr.Output = cmdStdout.String()[0 : cmdStdout.Len()-1]
