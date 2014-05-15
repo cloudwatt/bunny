@@ -69,43 +69,50 @@ type nagiosCheckResult struct {
 	ExitedOk           int     `json:"exited_ok"`
 	ReturnCode         int     `json:"return_code"`
 	Output             string  `json:"output"`
+	CorrelationID      string  `json:"-"`
 }
 
-func (nc *nagiosCheck) execute() {
+func (check *nagiosCheck) execute() {
 	var cmdStdout, cmdStderr bytes.Buffer
 
-	if config.LogLevel > 1 {
-		logger.Printf("worker: executing command \"%s\"", nc.CommandLine)
-	}
-
-	cr := &nagiosCheckResult{
-		HostName:           nc.HostName,
-		ServiceDescription: nc.ServiceDescription,
-		CheckOptions:       nc.CheckOptions,
-		StartTime:          nc.StartTime,
-		Latency:            nc.Latency,
+	checkResult := &nagiosCheckResult{
+		CorrelationID:      check.Message.CorrelationId,
+		HostName:           check.HostName,
+		ServiceDescription: check.ServiceDescription,
+		CheckOptions:       check.CheckOptions,
+		StartTime:          check.StartTime,
+		Latency:            check.Latency,
 		EarlyTimeout:       nagiosFalse,
 		ScheduledCheck:     nagiosTrue,
 		RescheduleCheck:    nagiosTrue,
 		ExitedOk:           nagiosTrue,
 	}
 
-	if nc.Timeout > 0 {
+	if check.Timeout > 0 {
 		// Override Nagios check timeout if longer than configuration-defined value
-		if nc.Timeout > config.MaxExecTimeout {
-			nc.Timeout = config.MaxExecTimeout
+		if check.Timeout > config.MaxExecTimeout {
+			check.Timeout = config.MaxExecTimeout
 		}
 	} else {
 		// Set configuration-defined timeout value if Nagios didn't set any
-		nc.Timeout = config.MaxExecTimeout
+		check.Timeout = config.MaxExecTimeout
 	}
 
-	cmd := exec.Command("/bin/sh", "-c", nc.CommandLine)
+	if config.LogLevel > 1 {
+		logger.Printf("worker: %s: executing command \"%s\"",
+			checkResult.CorrelationID,
+			check.CommandLine)
+	}
+
+	cmd := exec.Command("/bin/sh", "-c", check.CommandLine)
 	cmd.Stdout = &cmdStdout
 	cmd.Stderr = &cmdStderr
 
 	if err := cmd.Start(); err != nil {
-		logger.Fatalf("worker: error: unable to execute command line \"%s\": %s", nc.CommandLine, err)
+		logger.Fatalf("worker: %s: error: unable to execute command line \"%s\": %s",
+			checkResult.CorrelationID,
+			check.CommandLine,
+			err)
 	}
 
 	doneExec := make(chan error, 1)
@@ -114,76 +121,80 @@ func (nc *nagiosCheck) execute() {
 	}()
 
 	select {
-	case <-time.After(time.Duration(nc.Timeout) * time.Second):
+	case <-time.After(time.Duration(check.Timeout) * time.Second):
 		// Check execution time reached timeout, kill it with fire!
 		cmd.Process.Kill()
 
-		cr.EarlyTimeout = nagiosTrue
+		checkResult.EarlyTimeout = nagiosTrue
 
-		if nc.Type == "host" {
-			cr.Output = "(bunny: host check timed out)"
-			cr.ReturnCode = nagiosHostStatusUnreachable
+		if check.Type == "host" {
+			checkResult.Output = "(bunny: host check timed out)"
+			checkResult.ReturnCode = nagiosHostStatusUnreachable
 		} else {
-			cr.Output = "(bunny: service check timed out)"
-			cr.ReturnCode = nagiosServiceStatusUnknown
+			checkResult.Output = "(bunny: service check timed out)"
+			checkResult.ReturnCode = nagiosServiceStatusUnknown
 		}
 
 		if config.LogLevel > 2 {
-			logger.Printf("worker: command \"%s\" execution timed out", nc.CommandLine)
+			logger.Printf("worker: %s: command \"%s\" execution timed out",
+				checkResult.CorrelationID,
+				check.CommandLine)
 		}
 
 	case <-doneExec:
 		// If command didn't output anything on stdout, print stderr instead
 		if cmdStdout.Len() == 0 {
 			if cmdStderr.Len() > 0 {
-				cr.Output = cmdStderr.String()[0 : cmdStderr.Len()-1]
+				checkResult.Output = cmdStderr.String()[0 : cmdStderr.Len()-1]
 			} else {
 				// If there's nothing on stderr either
-				cr.Output = "(bunny: no check output)"
+				checkResult.Output = "(bunny: no check output)"
 			}
 		} else {
-			cr.Output = cmdStdout.String()[0 : cmdStdout.Len()-1]
+			checkResult.Output = cmdStdout.String()[0 : cmdStdout.Len()-1]
 
 			// If command also output something on stderr and we're asked to report it
 			if cmdStderr.Len() > 0 && config.ReportStderr {
-				cr.Output += fmt.Sprintf("\nstderr: %s", cmdStderr.String()[0:cmdStderr.Len()-1])
+				checkResult.Output += fmt.Sprintf("\nstderr: %s", cmdStderr.String()[0:cmdStderr.Len()-1])
 			}
 		}
 
-		cr.ReturnCode = cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+		checkResult.ReturnCode = cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 
 		// Check if return code is within acceptable bounds
-		if nc.Type == "host" {
-			if cr.ReturnCode < 0 || cr.ReturnCode > nagiosHostStatusUnreachable {
-				cr.ReturnCode = nagiosHostStatusUnreachable
+		if check.Type == "host" {
+			if checkResult.ReturnCode < 0 || checkResult.ReturnCode > nagiosHostStatusUnreachable {
+				checkResult.ReturnCode = nagiosHostStatusUnreachable
 			}
 		} else {
-			if cr.ReturnCode < 0 || cr.ReturnCode > nagiosServiceStatusUnknown {
-				cr.ReturnCode = nagiosServiceStatusUnknown
+			if checkResult.ReturnCode < 0 || checkResult.ReturnCode > nagiosServiceStatusUnknown {
+				checkResult.ReturnCode = nagiosServiceStatusUnknown
 			}
 		}
 
 		if config.LogLevel > 2 {
-			logger.Printf("worker: executed command \"%s\": [ReturnCode=%d stdOut=\"%s\" stdErr=\"%s\"]",
-				nc.CommandLine,
-				cr.ReturnCode,
+			logger.Printf("worker: %s: executed command \"%s\": [ReturnCode=%d stdOut=\"%s\" stdErr=\"%s\"]",
+				checkResult.CorrelationID,
+				check.CommandLine,
+				checkResult.ReturnCode,
 				strings.TrimSuffix(cmdStdout.String(), "\n"),
 				strings.TrimSuffix(cmdStderr.String(), "\n"))
 		}
 	}
 
 	timeEnd := time.Now()
-	cr.FinishTime = float64(timeEnd.Unix()) + (float64(timeEnd.Nanosecond()) * 0.000000001)
+	checkResult.FinishTime = float64(timeEnd.Unix()) + (float64(timeEnd.Nanosecond()) * 0.000000001)
 
 	// Append worker hostname as signature
 	if config.AppendWorkerHostname {
-		cr.Output += fmt.Sprintf("\nbunny worker: %s", hostname)
+		checkResult.Output += fmt.Sprintf("\nbunny worker: %s", hostname)
 	}
 
-	chkResChan <- cr
+	// Acknowledge AMQP check message
+	check.Message.Ack(false)
 
-	// Acknowledge AMQP check request message
-	nc.Message.Ack(false)
+	// Send the check result to the AMQP publisher
+	chkResChan <- checkResult
 
 	// Decrement running worker goroutines counter
 	wg.Done()

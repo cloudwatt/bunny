@@ -223,7 +223,7 @@ func stopAMQPPublisher() {
 	}
 }
 
-func runAMQPConsumer(c chan<- *nagiosCheck) {
+func runAMQPConsumer(checkChan chan<- *nagiosCheck) {
 	// Run until termination signal
 	for run {
 		for !amqpConsumer.connected {
@@ -245,7 +245,13 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 		for message := range amqpConsumer.messages {
 			if config.LogLevel > 2 {
 				logger.Printf(
-					"consumer: received message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
+					"consumer: %s: received message: ["+
+						"ContentType=\"%s\" "+
+						"Exchange=\"%s\" "+
+						"RoutingKey=\"%s\" "+
+						"Body=\"%s\""+
+						"]",
+					message.CorrelationId,
 					message.ContentType,
 					message.Exchange,
 					message.RoutingKey,
@@ -255,9 +261,12 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 			// Discard non JSON-formatted messages
 			if message.ContentType != "application/json" {
 				if message.ContentType == "" {
-					logger.Println("consumer: error: message has no content type")
+					logger.Printf("consumer: %s: error: message has no content type",
+						message.CorrelationId)
 				} else {
-					logger.Printf("consumer: error: unsupported message content type \"%s\"", message.ContentType)
+					logger.Printf("consumer: %s: error: unsupported message content type \"%s\"",
+						message.CorrelationId,
+						message.ContentType)
 				}
 
 				message.Ack(true)
@@ -265,15 +274,17 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 				continue
 			}
 
-			nc := new(nagiosCheck)
-			if err = json.Unmarshal(message.Body, nc); err != nil {
-				logger.Printf("consumer: error: unable to unmarshal check: %s", err)
+			check := new(nagiosCheck)
+			if err = json.Unmarshal(message.Body, check); err != nil {
+				logger.Printf("consumer: %s: error: unable to unmarshal check: %s",
+					message.CorrelationId,
+					err)
 				continue
 			}
 
-			nc.Message = message
+			check.Message = message
 
-			c <- nc
+			checkChan <- check
 		}
 
 		if config.LogLevel > 0 {
@@ -284,37 +295,41 @@ func runAMQPConsumer(c chan<- *nagiosCheck) {
 	}
 }
 
-func runAMQPPublisher(c <-chan *nagiosCheckResult) {
+func runAMQPPublisher(checkResultChan <-chan *nagiosCheckResult) {
 	var (
-		cr      *nagiosCheckResult
-		crJSON  []byte
-		message amqp.Publishing
+		checkResult *nagiosCheckResult
+		crJSON      []byte
+		message     amqp.Publishing
 	)
 
-	for cr = range c {
+	for checkResult = range checkResultChan {
 		// Check that we are connected to the broker before going forward
 		for !amqpPublisher.connected {
 			if err := initAMQPPublisher(); err != nil {
 				logger.Printf("%s", err)
 
 				if config.LogLevel > 0 {
-					logger.Printf("publisher: waiting for %ds before retry connecting", config.RetryWaitTime)
+					logger.Printf("publisher: waiting for %ds before retry connecting",
+						config.RetryWaitTime)
 				}
 
 				time.Sleep(time.Second * time.Duration(config.RetryWaitTime))
 			}
 		}
 
-		if crJSON, err = json.Marshal(*cr); err != nil {
-			logger.Printf("publisher: error: unable to marshal check results: %s", err)
+		if crJSON, err = json.Marshal(*checkResult); err != nil {
+			logger.Printf("publisher: %s: error: unable to marshal check result: %s",
+				checkResult.CorrelationID,
+				err)
 			continue
 		}
 
 		message = amqp.Publishing{
-			DeliveryMode: amqp.Transient,
-			Timestamp:    time.Now(),
-			ContentType:  "application/json",
-			Body:         crJSON,
+			ContentType:   "application/json",
+			CorrelationId: checkResult.CorrelationID,
+			DeliveryMode:  amqp.Transient,
+			Timestamp:     time.Now(),
+			Body:          crJSON,
 		}
 
 		if err = amqpPublisher.channel.Publish(
@@ -323,13 +338,21 @@ func runAMQPPublisher(c <-chan *nagiosCheckResult) {
 			false, // `mandatory` flag
 			false, // `immediate` flag
 			message); err != nil {
-			logger.Printf("publisher: error: unable to publish message: %s", err)
+			logger.Printf("publisher: %s: error: unable to publish message: %s",
+				checkResult.CorrelationID,
+				err)
 			stopAMQPPublisher()
 		}
 
 		if config.LogLevel > 2 {
 			logger.Printf(
-				"publisher: sent message: [ContentType=\"%s\" Exchange=\"%s\" RoutingKey=\"%s\" Body=\"%s\"]",
+				"publisher: %s: sent message: ["+
+					"ContentType=\"%s\" "+
+					"Exchange=\"%s\" "+
+					"RoutingKey=\"%s\" "+
+					"Body=\"%s\""+
+					"]",
+				checkResult.CorrelationID,
 				message.ContentType,
 				config.PublisherExchange,
 				config.PublisherRoutingKey,
