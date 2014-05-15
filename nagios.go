@@ -45,15 +45,15 @@ const (
 )
 
 type nagiosCheck struct {
-	CheckOptions       int     `json:"check_options"`
-	CommandLine        string  `json:"command_line"`
-	HostName           string  `json:"host_name"`
-	Latency            float64 `json:"latency"`
-	Type               string  `json:"type"`
-	ServiceDescription string  `json:"service_description"`
-	StartTime          float64 `json:"start_time"`
-	Timeout            int     `json:"timeout"`
-	Message            amqp.Delivery
+	CheckOptions       int           `json:"check_options"`
+	CommandLine        string        `json:"command_line"`
+	HostName           string        `json:"host_name"`
+	Latency            float64       `json:"latency"`
+	Type               string        `json:"type"`
+	ServiceDescription string        `json:"service_description"`
+	StartTime          float64       `json:"start_time"`
+	Timeout            int           `json:"timeout"`
+	Message            amqp.Delivery `json:"-"`
 }
 
 type nagiosCheckResult struct {
@@ -70,6 +70,7 @@ type nagiosCheckResult struct {
 	ReturnCode         int     `json:"return_code"`
 	Output             string  `json:"output"`
 	CorrelationID      string  `json:"-"`
+	ReplyTo            string  `json:"-"`
 }
 
 func (check *nagiosCheck) execute() {
@@ -99,7 +100,7 @@ func (check *nagiosCheck) execute() {
 	}
 
 	if config.LogLevel > 1 {
-		logger.Printf("worker: %s: executing command \"%s\"",
+		logger.Printf("%s: worker: executing command \"%s\"",
 			checkResult.CorrelationID,
 			check.CommandLine)
 	}
@@ -109,7 +110,7 @@ func (check *nagiosCheck) execute() {
 	cmd.Stderr = &cmdStderr
 
 	if err := cmd.Start(); err != nil {
-		logger.Fatalf("worker: %s: error: unable to execute command line \"%s\": %s",
+		logger.Fatalf("%s: worker: error: unable to execute command line \"%s\": %s",
 			checkResult.CorrelationID,
 			check.CommandLine,
 			err)
@@ -136,7 +137,7 @@ func (check *nagiosCheck) execute() {
 		}
 
 		if config.LogLevel > 2 {
-			logger.Printf("worker: %s: command \"%s\" execution timed out",
+			logger.Printf("%s: worker: command \"%s\" execution timed out",
 				checkResult.CorrelationID,
 				check.CommandLine)
 		}
@@ -173,7 +174,7 @@ func (check *nagiosCheck) execute() {
 		}
 
 		if config.LogLevel > 2 {
-			logger.Printf("worker: %s: executed command \"%s\": [ReturnCode=%d stdOut=\"%s\" stdErr=\"%s\"]",
+			logger.Printf("%s: worker: executed command \"%s\": [ReturnCode=%d stdOut=\"%s\" stdErr=\"%s\"]",
 				checkResult.CorrelationID,
 				check.CommandLine,
 				checkResult.ReturnCode,
@@ -195,6 +196,13 @@ func (check *nagiosCheck) execute() {
 
 	// Send the check result to the AMQP publisher
 	chkResChan <- checkResult
+
+	// If the check message specifies a 'reply-to' header, else use the default
+	if check.Message.ReplyTo != "" {
+		checkResult.ReplyTo = check.Message.ReplyTo
+	} else {
+		checkResult.ReplyTo = config.PublisherRoutingKey
+	}
 
 	// Decrement running worker goroutines counter
 	wg.Done()

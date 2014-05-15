@@ -245,26 +245,28 @@ func runAMQPConsumer(checkChan chan<- *nagiosCheck) {
 		for message := range amqpConsumer.messages {
 			if config.LogLevel > 2 {
 				logger.Printf(
-					"consumer: %s: received message: ["+
+					"%s: consumer: received message: ["+
 						"ContentType=\"%s\" "+
 						"Exchange=\"%s\" "+
 						"RoutingKey=\"%s\" "+
+						"ReplyTo=\"%s\" "+
 						"Body=\"%s\""+
 						"]",
 					message.CorrelationId,
 					message.ContentType,
 					message.Exchange,
 					message.RoutingKey,
+					message.ReplyTo,
 					message.Body)
 			}
 
 			// Discard non JSON-formatted messages
 			if message.ContentType != "application/json" {
 				if message.ContentType == "" {
-					logger.Printf("consumer: %s: error: message has no content type",
+					logger.Printf("%s: consumer: error: message has no content type",
 						message.CorrelationId)
 				} else {
-					logger.Printf("consumer: %s: error: unsupported message content type \"%s\"",
+					logger.Printf("%s: consumer: error: unsupported message content type \"%s\"",
 						message.CorrelationId,
 						message.ContentType)
 				}
@@ -276,7 +278,7 @@ func runAMQPConsumer(checkChan chan<- *nagiosCheck) {
 
 			check := new(nagiosCheck)
 			if err = json.Unmarshal(message.Body, check); err != nil {
-				logger.Printf("consumer: %s: error: unable to unmarshal check: %s",
+				logger.Printf("%s: consumer: error: unable to unmarshal check: %s",
 					message.CorrelationId,
 					err)
 				continue
@@ -318,7 +320,7 @@ func runAMQPPublisher(checkResultChan <-chan *nagiosCheckResult) {
 		}
 
 		if crJSON, err = json.Marshal(*checkResult); err != nil {
-			logger.Printf("publisher: %s: error: unable to marshal check result: %s",
+			logger.Printf("%s: publisher: error: unable to marshal check result: %s",
 				checkResult.CorrelationID,
 				err)
 			continue
@@ -333,12 +335,12 @@ func runAMQPPublisher(checkResultChan <-chan *nagiosCheckResult) {
 		}
 
 		if err = amqpPublisher.channel.Publish(
-			config.PublisherExchange,   // exchange name
-			config.PublisherRoutingKey, // routing key
-			false, // `mandatory` flag
-			false, // `immediate` flag
+			config.PublisherExchange, // exchange name
+			checkResult.ReplyTo,      // routing key
+			false,                    // `mandatory` flag
+			false,                    // `immediate` flag
 			message); err != nil {
-			logger.Printf("publisher: %s: error: unable to publish message: %s",
+			logger.Printf("%s: publisher: error: unable to publish message: %s",
 				checkResult.CorrelationID,
 				err)
 			stopAMQPPublisher()
@@ -346,7 +348,7 @@ func runAMQPPublisher(checkResultChan <-chan *nagiosCheckResult) {
 
 		if config.LogLevel > 2 {
 			logger.Printf(
-				"publisher: %s: sent message: ["+
+				"%s: publisher: sent message: ["+
 					"ContentType=\"%s\" "+
 					"Exchange=\"%s\" "+
 					"RoutingKey=\"%s\" "+
@@ -355,7 +357,7 @@ func runAMQPPublisher(checkResultChan <-chan *nagiosCheckResult) {
 				checkResult.CorrelationID,
 				message.ContentType,
 				config.PublisherExchange,
-				config.PublisherRoutingKey,
+				checkResult.ReplyTo,
 				message.Body)
 		}
 	}
