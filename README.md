@@ -1,6 +1,8 @@
 bunny: remote Nagios host/service check execution worker
 ========================================================
 
+[![Gobuild Download](http://gobuild.io/badge/github.com/cloudwatt/bunny/downloads.svg)](http://gobuild.io/github.com/cloudwatt/bunny)
+
 **bunny** is [mod_bunny](http://github.com/cloudwatt/mod_bunny)'s worker companion: it executes host/service checks commands queued by Nagios's mod_bunny and publishes the check results back into the RabbitMQ broker for mod_bunny to reinject them into Nagios.
 
 Requirements
