@@ -191,18 +191,18 @@ func (check *nagiosCheck) execute() {
 		checkResult.Output += fmt.Sprintf("\nbunny worker: %s", hostname)
 	}
 
-	// Acknowledge AMQP check message
-	check.Message.Ack(false)
-
-	// Send the check result to the AMQP publisher
-	chkResChan <- checkResult
-
 	// If the check message specifies a 'reply-to' header, else use the default
 	if check.Message.ReplyTo != "" {
 		checkResult.ReplyTo = check.Message.ReplyTo
 	} else {
 		checkResult.ReplyTo = config.PublisherRoutingKey
 	}
+
+	// Send the check result to the AMQP publisher
+	chkResChan <- checkResult
+
+	// Acknowledge AMQP check message
+	check.Message.Ack(false)
 
 	// Decrement running worker goroutines counter
 	wg.Done()
