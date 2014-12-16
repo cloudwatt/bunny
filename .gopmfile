@@ -1,0 +1,9 @@
+[target]
+path = github.com/cloudwatt/bunny
+
+[deps]
+github.com/streadway/amqp = commit:9f2794ea4795db5b02de35a378fdfa2456371350
+
+[res]
+include = 
+
